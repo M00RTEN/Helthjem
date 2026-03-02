@@ -3,86 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Min Sporing</title>
+    <title>Mine Pakker - HeltHjem</title>
     <style>
-        body { font-family: -apple-system, sans-serif; max-width: 500px; margin: auto; padding: 20px; background: #f4f4f9; }
-        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 10px; }
-        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px; }
-        .status-box { font-size: 14px; color: #555; background: #eef; padding: 5px 10px; border-radius: 5px; }
-        input { width: 60%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-        button { padding: 10px; background: #ff5a00; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .btn-link { background: #007bff; font-size: 12px; margin-top: 10px; display: inline-block; text-decoration: none; color: white; padding: 5px 10px; border-radius: 4px; }
-        .delete { color: red; cursor: pointer; font-size: 20px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 500px; margin: auto; padding: 20px; background: #f8f9fa; color: #333; }
+        h1 { text-align: center; color: #1a1a1a; }
+        .input-group { display: flex; gap: 8px; margin-bottom: 25px; }
+        input { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        button.add-btn { padding: 12px 20px; background: #ff5a00; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .card { background: white; padding: 16px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; border-left: 5px solid #ff5a00; }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .track-number { font-size: 14px; color: #666; font-family: monospace; }
+        .status-text { background: #f0f2f5; padding: 10px; border-radius: 6px; font-size: 15px; font-weight: 500; min-height: 20px; }
+        .actions { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+        .btn-link { color: #007bff; text-decoration: none; font-size: 14px; font-weight: 600; }
+        .delete-btn { color: #ff4d4d; cursor: pointer; background: none; border: none; font-size: 18px; }
     </style>
 </head>
 <body>
+
     <h1>Mine Pakker</h1>
-    <div style="margin-bottom: 20px; display: flex; gap: 5px;">
-        <input type="text" id="trackInput" placeholder="Sporingsnummer...">
-        <button onclick="addPackage()">Legg til</button>
+
+    <div class="input-group">
+        <input type="text" id="trackInput" placeholder="Lim inn sporingsnummer...">
+        <button class="add-btn" onclick="addPackage()">Legg til</button>
     </div>
+
     <div id="packageList"></div>
 
     <script>
         let packages = JSON.parse(localStorage.getItem('myPackages')) || [];
 
-        async function getStatus(nr) {
+        // Funksjon som henter status fra DIN backend
+        async function fetchStatus(nr) {
             try {
-                // Vi bruker en åpen proxy for å unngå CORS-problemer (kun for testing)
-                const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://helthjem.no/api/v1/tracking/' + nr)}`);
+                const res = await fetch(`/api/spor?nummer=${nr}`);
                 const data = await res.json();
-                const trackingData = JSON.parse(data.contents);
-                return trackingData.latestEvent?.description || "Ingen status ennå";
+                return data.status || "Ingen status funnet";
             } catch (e) {
-                return "Kunne ikke hente status";
+                return "Kunne ikke oppdatere status";
             }
         }
 
         async function render() {
             const list = document.getElementById('packageList');
-            list.innerHTML = 'Oppdaterer...';
-            
-            let html = '';
-            for (let i = 0; i < packages.length; i++) {
-                const nr = packages[i];
-                // Her fikser vi den rette lenken du fant
-                const correctLink = `https://helthjem.no/sporing/${nr}`;
-                
-                html += `
-                    <div class="card">
-                        <div class="card-header">
-                            <strong>${nr}</strong>
-                            <span class="delete" onclick="removePackage(${i})">×</span>
-                        </div>
-                        <div class="status-box" id="status-${nr}">Henter status...</div>
-                        <a href="${correctLink}" target="_blank" class="btn-link">Åpne hos HeltHjem</a>
-                    </div>`;
+            if (packages.length === 0) {
+                list.innerHTML = '<p style="text-align:center; color:#999;">Ingen pakker lagret ennå.</p>';
+                return;
             }
-            list.innerHTML = html;
 
-            // Hent statuser i bakgrunnen
+            list.innerHTML = '';
+            
+            // Vi lager "skallet" først
+            packages.forEach((nr, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="card-header">
+                        <span class="track-number">${nr}</span>
+                        <button class="delete-btn" onclick="removePackage(${index})">×</button>
+                    </div>
+                    <div class="status-text" id="status-${nr}">Henter status...</div>
+                    <div class="actions">
+                        <a href="https://helthjem.no/sporing/${nr}" target="_blank" class="btn-link">Åpne hos HeltHjem →</a>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+
+            // Deretter henter vi statusene asynkront
             for (let nr of packages) {
-                const status = await getStatus(nr);
-                document.getElementById(`status-${nr}`).innerText = status;
+                const status = await fetchStatus(nr);
+                const el = document.getElementById(`status-${nr}`);
+                if (el) el.innerText = status;
             }
 
             localStorage.setItem('myPackages', JSON.stringify(packages));
         }
 
         function addPackage() {
-            const val = document.getElementById('trackInput').value.trim();
+            const input = document.getElementById('trackInput');
+            const val = input.value.trim();
             if (val && !packages.includes(val)) {
-                packages.push(val);
-                document.getElementById('trackInput').value = '';
+                packages.unshift(val); // Legger den nyeste øverst
+                input.value = '';
                 render();
             }
         }
 
         function removePackage(index) {
-            packages.splice(index, 1);
-            render();
+            if(confirm("Vil du slette denne pakken fra listen?")) {
+                packages.splice(index, 1);
+                render();
+            }
         }
 
+        // Kjør ved oppstart
         render();
     </script>
 </body>
