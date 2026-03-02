@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sporing</title>
+    <style>body { font-family: sans-serif; padding: 20px; }</style>
+</head>
+<body>
+    <h1>HeltHjem Sporing</h1>
+    <input type="text" id="trackingNum" placeholder="Sporingsnummer">
+    <button onclick="sjekkStatus()">Sjekk</button>
+    <p id="resultat"></p>
+
+    <script>
+        async function sjekkStatus() {
+            const nr = document.getElementById('trackingNum').value;
+            const resEl = document.getElementById('resultat');
+            resEl.innerText = "Henter status...";
+
+            // Kallet går til backend-funksjonen vår i /api mappen
+            const response = await fetch(`/api/spor?nummer=${nr}`);
+            const data = await response.json();
+            
+            resEl.innerText = `Status: ${data.status}`;
+        }
+    </script>
+</body>
+</html>
