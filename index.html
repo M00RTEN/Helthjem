@@ -3,27 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sporing</title>
-    <style>body { font-family: sans-serif; padding: 20px; }</style>
+    <title>Min Sporing</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 500px; margin: auto; padding: 20px; background: #f4f4f9; }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        input { width: 70%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px; background: #ff5a00; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .btn-check { background: #007bff; font-size: 12px; }
+        .delete { color: red; cursor: pointer; font-size: 18px; margin-left: 10px; }
+    </style>
 </head>
 <body>
-    <h1>HeltHjem Sporing</h1>
-    <input type="text" id="trackingNum" placeholder="Sporingsnummer">
-    <button onclick="sjekkStatus()">Sjekk</button>
-    <p id="resultat"></p>
+    <h1>Mine Pakker</h1>
+    <div style="margin-bottom: 20px;">
+        <input type="text" id="trackInput" placeholder="Sporingsnummer...">
+        <button onclick="addPackage()">Legg til</button>
+    </div>
+    <div id="packageList"></div>
 
     <script>
-        async function sjekkStatus() {
-            const nr = document.getElementById('trackingNum').value;
-            const resEl = document.getElementById('resultat');
-            resEl.innerText = "Henter status...";
+        let packages = JSON.parse(localStorage.getItem('myPackages')) || [];
 
-            // Kallet går til backend-funksjonen vår i /api mappen
-            const response = await fetch(`/api/spor?nummer=${nr}`);
-            const data = await response.json();
-            
-            resEl.innerText = `Status: ${data.status}`;
+        function render() {
+            const list = document.getElementById('packageList');
+            list.innerHTML = '';
+            packages.forEach((nr, index) => {
+                list.innerHTML += `
+                    <div class="card">
+                        <span><strong>${nr}</strong></span>
+                        <div>
+                            <button class="btn-check" onclick="window.open('https://helthjem.no/sporing?trackingNumber=${nr}', '_blank')">Åpne sporing</button>
+                            <span class="delete" onclick="removePackage(${index})">×</span>
+                        </div>
+                    </div>`;
+            });
+            localStorage.setItem('myPackages', JSON.stringify(packages));
         }
+
+        function addPackage() {
+            const val = document.getElementById('trackInput').value.trim();
+            if (val) {
+                packages.push(val);
+                document.getElementById('trackInput').value = '';
+                render();
+            }
+        }
+
+        function removePackage(index) {
+            packages.splice(index, 1);
+            render();
+        }
+
+        render();
     </script>
 </body>
 </html>
