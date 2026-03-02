@@ -3,98 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Min Sporing</title>
+    <title>Mine Pakker</title>
     <style>
-        body { font-family: -apple-system, sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #f0f2f5; }
-        .input-group { display: flex; gap: 10px; margin-bottom: 30px; }
-        input { flex: 1; padding: 15px; border: none; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        button { padding: 15px 25px; background: #ff5a00; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
-        .card { background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        .main-status { font-size: 18px; font-weight: bold; color: #ff5a00; margin-bottom: 5px; }
-        .location { font-size: 14px; color: #666; margin-bottom: 15px; }
-        .timeline { border-left: 2px solid #eee; margin-left: 10px; padding-left: 20px; }
-        .event { margin-bottom: 15px; position: relative; }
-        .event::before { content: ''; position: absolute; left: -26px; top: 5px; width: 10px; height: 10px; background: #ddd; border-radius: 50%; }
-        .event.latest::before { background: #ff5a00; }
-        .event-time { font-size: 12px; color: #999; }
-        .event-desc { font-size: 14px; color: #333; }
-        .delete-btn { float: right; color: #ccc; cursor: pointer; border: none; background: none; font-size: 20px; }
+        body { font-family: -apple-system, sans-serif; max-width: 500px; margin: auto; padding: 20px; background: #f4f7f6; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .input-box { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button.add { width: 100%; padding: 12px; background: #ff5a00; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); position: relative; border-left: 6px solid #ff5a00; }
+        .nickname { font-weight: bold; font-size: 18px; margin-bottom: 5px; color: #333; }
+        .track-nr { font-size: 13px; color: #888; margin-bottom: 12px; }
+        .btn-track { display: block; text-align: center; background: #007bff; color: white; text-decoration: none; padding: 10px; border-radius: 8px; font-size: 14px; font-weight: bold; }
+        .delete-btn { position: absolute; top: 10px; right: 10px; color: #ccc; cursor: pointer; border: none; background: none; font-size: 20px; }
     </style>
 </head>
 <body>
 
-    <h1>Mine Pakker</h1>
-    <div class="input-group">
+    <div class="header">
+        <h1>Mine Pakker 📦</h1>
+    </div>
+
+    <div class="input-box">
+        <input type="text" id="nickInput" placeholder="Navn på pakken (f.eks. Jakke)">
         <input type="text" id="trackInput" placeholder="Sporingsnummer...">
-        <button onclick="addPackage()">Legg til</button>
+        <button class="add" onclick="addPackage()">Legg til i listen</button>
     </div>
 
     <div id="packageList"></div>
 
     <script>
-        let packages = JSON.parse(localStorage.getItem('myPackages')) || [];
+        let packages = JSON.parse(localStorage.getItem('hhPackages')) || [];
 
-        async function updatePackage(nr) {
-            try {
-                const res = await fetch(`/api/spor?nummer=${nr}`);
-                const data = await res.json();
-                renderCard(nr, data);
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        function renderCard(nr, data) {
-            const container = document.getElementById(`card-${nr}`);
-            if (!container) return;
-
-            let eventsHtml = data.events.map((e, i) => `
-                <div class="event ${i === 0 ? 'latest' : ''}">
-                    <div class="event-time">${e.displayTime} ${e.city ? '• ' + e.city : ''}</div>
-                    <div class="event-desc">${e.description}</div>
-                </div>
-            `).join('');
-
-            container.innerHTML = `
-                <button class="delete-btn" onclick="removePackage('${nr}')">×</button>
-                <div class="main-status">${data.status || 'Henter...'}</div>
-                <div class="location">${data.time} ${data.city ? ' - ' + data.city : ''}</div>
-                <div class="timeline">
-                    ${eventsHtml || '<p>Venter på data fra HeltHjem...</p>'}
-                </div>
-                <div style="margin-top:15px; font-size:12px; color:#ccc;">ID: ${nr}</div>
-            `;
-        }
-
-        function renderAll() {
+        function render() {
             const list = document.getElementById('packageList');
             list.innerHTML = '';
-            packages.forEach(nr => {
-                const div = document.createElement('div');
-                div.id = `card-${nr}`;
-                div.className = 'card';
-                div.innerHTML = 'Laster data...';
-                list.appendChild(div);
-                updatePackage(nr);
+            
+            packages.forEach((p, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <button class="delete-btn" onclick="removePackage(${index})">×</button>
+                    <div class="nickname">${p.nick || 'Pakke'}</div>
+                    <div class="track-nr"># ${p.nr}</div>
+                    <a href="https://helthjem.no/sporing/${p.nr}" target="_blank" class="btn-track">Sjekk status hos HeltHjem</a>
+                `;
+                list.appendChild(card);
             });
-            localStorage.setItem('myPackages', JSON.stringify(packages));
+            localStorage.setItem('hhPackages', JSON.stringify(packages));
         }
 
         function addPackage() {
-            const val = document.getElementById('trackInput').value.trim();
-            if (val && !packages.includes(val)) {
-                packages.unshift(val);
+            const nick = document.getElementById('nickInput').value;
+            const nr = document.getElementById('trackInput').value.trim();
+            
+            if (nr) {
+                packages.unshift({ nick, nr });
+                document.getElementById('nickInput').value = '';
                 document.getElementById('trackInput').value = '';
-                renderAll();
+                render();
             }
         }
 
-        function removePackage(nr) {
-            packages = packages.filter(p => p !== nr);
-            renderAll();
+        function removePackage(index) {
+            packages.splice(index, 1);
+            render();
         }
 
-        renderAll();
+        render();
     </script>
 </body>
 </html>
