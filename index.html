@@ -5,17 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Min Sporing</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 500px; margin: auto; padding: 20px; background: #f4f4f9; }
-        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        input { width: 70%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        body { font-family: -apple-system, sans-serif; max-width: 500px; margin: auto; padding: 20px; background: #f4f4f9; }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 10px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px; }
+        .status-box { font-size: 14px; color: #555; background: #eef; padding: 5px 10px; border-radius: 5px; }
+        input { width: 60%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
         button { padding: 10px; background: #ff5a00; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .btn-check { background: #007bff; font-size: 12px; }
-        .delete { color: red; cursor: pointer; font-size: 18px; margin-left: 10px; }
+        .btn-link { background: #007bff; font-size: 12px; margin-top: 10px; display: inline-block; text-decoration: none; color: white; padding: 5px 10px; border-radius: 4px; }
+        .delete { color: red; cursor: pointer; font-size: 20px; }
     </style>
 </head>
 <body>
     <h1>Mine Pakker</h1>
-    <div style="margin-bottom: 20px;">
+    <div style="margin-bottom: 20px; display: flex; gap: 5px;">
         <input type="text" id="trackInput" placeholder="Sporingsnummer...">
         <button onclick="addPackage()">Legg til</button>
     </div>
@@ -24,25 +26,52 @@
     <script>
         let packages = JSON.parse(localStorage.getItem('myPackages')) || [];
 
-        function render() {
+        async function getStatus(nr) {
+            try {
+                // Vi bruker en åpen proxy for å unngå CORS-problemer (kun for testing)
+                const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://helthjem.no/api/v1/tracking/' + nr)}`);
+                const data = await res.json();
+                const trackingData = JSON.parse(data.contents);
+                return trackingData.latestEvent?.description || "Ingen status ennå";
+            } catch (e) {
+                return "Kunne ikke hente status";
+            }
+        }
+
+        async function render() {
             const list = document.getElementById('packageList');
-            list.innerHTML = '';
-            packages.forEach((nr, index) => {
-                list.innerHTML += `
+            list.innerHTML = 'Oppdaterer...';
+            
+            let html = '';
+            for (let i = 0; i < packages.length; i++) {
+                const nr = packages[i];
+                // Her fikser vi den rette lenken du fant
+                const correctLink = `https://helthjem.no/sporing/${nr}`;
+                
+                html += `
                     <div class="card">
-                        <span><strong>${nr}</strong></span>
-                        <div>
-                            <button class="btn-check" onclick="window.open('https://helthjem.no/sporing?trackingNumber=${nr}', '_blank')">Åpne sporing</button>
-                            <span class="delete" onclick="removePackage(${index})">×</span>
+                        <div class="card-header">
+                            <strong>${nr}</strong>
+                            <span class="delete" onclick="removePackage(${i})">×</span>
                         </div>
+                        <div class="status-box" id="status-${nr}">Henter status...</div>
+                        <a href="${correctLink}" target="_blank" class="btn-link">Åpne hos HeltHjem</a>
                     </div>`;
-            });
+            }
+            list.innerHTML = html;
+
+            // Hent statuser i bakgrunnen
+            for (let nr of packages) {
+                const status = await getStatus(nr);
+                document.getElementById(`status-${nr}`).innerText = status;
+            }
+
             localStorage.setItem('myPackages', JSON.stringify(packages));
         }
 
         function addPackage() {
             const val = document.getElementById('trackInput').value.trim();
-            if (val) {
+            if (val && !packages.includes(val)) {
                 packages.push(val);
                 document.getElementById('trackInput').value = '';
                 render();
